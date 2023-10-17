@@ -87,16 +87,7 @@ This will create the Lambda functions and the `EmployeeTable` DynamoDB table in 
 
 
 ==================
-
-Certainly! Below is a basic example of Node.js code for performing CRUD (Create, Read, Update, Delete) operations on an AWS DynamoDB table named `EmployeeTable` using the AWS SDK.
-
-First, you'll need to install the AWS SDK for Node.js:
-
-```bash
-npm install aws-sdk
-```
-
-Next, you can create a Node.js script to interact with DynamoDB:
+Certainly, if you prefer to use error-first callbacks (commonly used in Node.js for asynchronous operations), you can modify the code to utilize callbacks. Here's an example of the same CRUD operations on the DynamoDB table using error-first callbacks:
 
 ```javascript
 const AWS = require('aws-sdk');
@@ -113,17 +104,23 @@ const dynamodb = new AWS.DynamoDB.DocumentClient();
 const tableName = 'EmployeeTable';
 
 // Function to create a new employee record
-const createEmployee = (employee) => {
+const createEmployee = (employee, callback) => {
   const params = {
     TableName: tableName,
     Item: employee,
   };
 
-  return dynamodb.put(params).promise();
+  dynamodb.put(params, (err, data) => {
+    if (err) {
+      callback(err);
+    } else {
+      callback(null, data);
+    }
+  });
 };
 
 // Function to get an employee by their ID
-const getEmployee = (employeeId) => {
+const getEmployee = (employeeId, callback) => {
   const params = {
     TableName: tableName,
     Key: {
@@ -131,11 +128,17 @@ const getEmployee = (employeeId) => {
     },
   };
 
-  return dynamodb.get(params).promise();
+  dynamodb.get(params, (err, data) => {
+    if (err) {
+      callback(err);
+    } else {
+      callback(null, data.Item);
+    }
+  });
 };
 
 // Function to update an employee's information
-const updateEmployee = (employee) => {
+const updateEmployee = (employee, callback) => {
   const params = {
     TableName: tableName,
     Key: {
@@ -149,11 +152,17 @@ const updateEmployee = (employee) => {
     ReturnValues: 'ALL_NEW',
   };
 
-  return dynamodb.update(params).promise();
+  dynamodb.update(params, (err, data) => {
+    if (err) {
+      callback(err);
+    } else {
+      callback(null, data.Attributes);
+    }
+  });
 };
 
 // Function to delete an employee by their ID
-const deleteEmployee = (employeeId) => {
+const deleteEmployee = (employeeId, callback) => {
   const params = {
     TableName: tableName,
     Key: {
@@ -161,41 +170,55 @@ const deleteEmployee = (employeeId) => {
     },
   };
 
-  return dynamodb.delete(params).promise();
+  dynamodb.delete(params, (err, data) => {
+    if (err) {
+      callback(err);
+    } else {
+      callback(null, 'Employee deleted.');
+    }
+  });
 };
 
 // Example usage
-const main = async () => {
-  try {
-    // Create a new employee
-    await createEmployee({
-      id: '1',
-      firstName: 'John',
-      lastName: 'Doe',
-    });
+const main = () => {
+  // Create a new employee
+  createEmployee({ id: '1', firstName: 'John', lastName: 'Doe' }, (err, data) => {
+    if (err) {
+      console.error('Error:', err);
+    } else {
+      console.log('Employee created:', data);
+      
+      // Get an employee
+      getEmployee('1', (err, employee) => {
+        if (err) {
+          console.error('Error:', err);
+        } else {
+          console.log('Get Employee:', employee);
+          
+          // Update an employee's information
+          updateEmployee({ id: '1', firstName: 'Jane', lastName: 'Doe' }, (err, updatedEmployee) => {
+            if (err) {
+              console.error('Error:', err);
+            } else {
+              console.log('Updated Employee:', updatedEmployee);
 
-    // Get an employee
-    const employee = await getEmployee('1');
-    console.log('Get Employee:', employee);
-
-    // Update an employee's information
-    await updateEmployee({
-      id: '1',
-      firstName: 'Jane',
-      lastName: 'Doe',
-    });
-
-    // Delete an employee
-    await deleteEmployee('1');
-    console.log('Employee deleted.');
-  } catch (error) {
-    console.error('Error:', error);
-  }
+              // Delete an employee
+              deleteEmployee('1', (err, message) => {
+                if (err) {
+                  console.error('Error:', err);
+                } else {
+                  console.log(message);
+                }
+              });
+            }
+          });
+        }
+      });
+    }
+  });
 };
 
 main();
 ```
 
-Please note that this code is a basic example and assumes you have the AWS credentials configured with the necessary permissions to perform operations on the DynamoDB table. Be sure to replace `'YOUR_ACCESS_KEY'`, `'YOUR_SECRET_ACCESS_KEY'`, and the example data with your own values.
-
-Additionally, you should handle errors and implement appropriate error handling in a production application.
+This code structure uses error-first callbacks for each DynamoDB operation, providing more traditional asynchronous handling in Node.js. Replace `'YOUR_ACCESS_KEY'`, `'YOUR_SECRET_ACCESS_KEY'`, and the example data with your own values.
