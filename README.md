@@ -222,3 +222,128 @@ main();
 ```
 
 This code structure uses error-first callbacks for each DynamoDB operation, providing more traditional asynchronous handling in Node.js. Replace `'YOUR_ACCESS_KEY'`, `'YOUR_SECRET_ACCESS_KEY'`, and the example data with your own values.
+
+
+
+
+
+
+=================
+
+
+
+Certainly! To add DynamoDB table creation and a sample getItem function to the Serverless Framework template, you can define an AWS Lambda function and the corresponding DynamoDB resources. Here's an extended `serverless.yml` file:
+
+```yaml
+service: employee-database
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: us-east-1 # Set your desired AWS region
+
+resources:
+  Resources:
+    EmployeeTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Employee
+        AttributeDefinitions:
+          - AttributeName: EmployeeID
+            AttributeType: N
+          - AttributeName: LastName
+            AttributeType: S
+          - AttributeName: Salary
+            AttributeType: N
+          - AttributeName: Email
+            AttributeType: S
+          - AttributeName: Address
+            AttributeType: S
+        KeySchema:
+          - AttributeName: EmployeeID
+            KeyType: HASH
+          - AttributeName: LastName
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        LocalSecondaryIndexes:
+          - IndexName: SalaryIndex
+            KeySchema:
+              - AttributeName: EmployeeID
+                KeyType: HASH
+              - AttributeName: Salary
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        GlobalSecondaryIndexes:
+          - IndexName: EmailIndex
+            KeySchema:
+              - AttributeName: Email
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: AddressIndex
+            KeySchema:
+              - AttributeName: Address
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+
+  Functions:
+    getItem:
+      handler: getItem.handler
+      events:
+        - http:
+            path: getItem
+            method: GET
+
+plugins:
+  - serverless-offline
+```
+
+Now, let's define the JavaScript code for the `getItem` Lambda function. Create a directory for your function code (e.g., `getItem`) and add a `handler.js` file inside it:
+
+```javascript
+// getItem/handler.js
+
+const AWS = require('aws-sdk');
+const docClient = new AWS.DynamoDB.DocumentClient();
+
+exports.handler = async (event) => {
+  try {
+    const params = {
+      TableName: 'Employee',
+      Key: {
+        EmployeeID: parseInt(event.queryStringParameters.EmployeeID),
+        LastName: event.queryStringParameters.LastName,
+      },
+    };
+
+    const data = await docClient.get(params).promise();
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify(data.Item),
+    };
+  } catch (error) {
+    console.error('Error:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Internal Server Error' }),
+    };
+  }
+};
+```
+
+This code defines a Lambda function named `getItem` that retrieves an employee's data based on `EmployeeID` and `LastName`. It expects these parameters as query string parameters in the HTTP GET request.
+
+Finally, deploy your service using `serverless deploy`. You'll have a DynamoDB table and an API endpoint (`/getItem`) that allows you to fetch employee records.
+
+Remember to adapt the code and configuration based on your specific requirements and add proper error handling and security measures for a production environment.
