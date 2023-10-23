@@ -347,3 +347,98 @@ This code defines a Lambda function named `getItem` that retrieves an employee's
 Finally, deploy your service using `serverless deploy`. You'll have a DynamoDB table and an API endpoint (`/getItem`) that allows you to fetch employee records.
 
 Remember to adapt the code and configuration based on your specific requirements and add proper error handling and security measures for a production environment.
+
+
+====
+
+To create a dynamic DynamoDB table name and add an S3 bucket name to your Serverless Framework configuration, you can make use of Serverless Framework's variable and reference capabilities. Here's an updated `serverless.yml` file with those changes:
+
+```yaml
+service: my-serverless-app
+frameworkVersion: '2'
+useDotenv: true
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  stage: ${opt:stage, 'dev'}
+  region: us-east-1
+  vpc:
+    securityGroupIds:
+      - sg-xxxxxxxxxxxxxx  # Replace with your security group ID
+    subnetIds:
+      - subnet-xxxxxxxxxx  # Replace with your private subnet ID
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "dynamodb:*"
+      Resource:
+        - "arn:aws:dynamodb:us-east-1:123456789012:table/${self:custom.dynamoTableName}"
+
+functions:
+  myFunction:
+    handler: handler.myFunction
+    events:
+      - http:
+          path: /myendpoint
+          method: POST
+          private: true  # This restricts access to VPC
+    vpc:
+      securityGroupIds:
+        - sg-xxxxxxxxxxxxxx  # Replace with your security group ID
+      subnetIds:
+        - subnet-xxxxxxxxxx  # Replace with your private subnet ID
+    environment:
+      TABLE_NAME: ${self:custom.dynamoTableName}
+
+custom:
+  stage: ${self:provider.stage}
+  dynamoTableName: ${self:provider.stage}-MyTable
+  s3BucketName: ${self:provider.stage}-my-s3-bucket
+
+resources:
+  Resources:
+    MyTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.dynamoTableName}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: N
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+
+    MySNSTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        DisplayName: "My SNS Topic"
+        TopicName: ${self:custom.dynamoTableName}-MySNSTopic
+
+    MyS3Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.s3BucketName}
+
+  Outputs:
+    MySNSTopicArn:
+      Value:
+        Fn::GetAtt:
+          - MySNSTopic
+          - Arn
+    MyS3BucketName:
+      Value: ${self:custom.s3BucketName}
+```
+
+In this updated configuration:
+
+1. The DynamoDB table name is dynamic and is based on the `${self:custom.dynamoTableName}` variable.
+
+2. The S3 bucket name is also dynamic and is based on the `${self:custom.s3BucketName}` variable.
+
+3. The `custom` section defines these variables with the format `${self:provider.stage}-MyTable` and `${self:provider.stage}-my-s3-bucket` to create unique resource names for each stage.
+
+This configuration allows you to deploy the service to different stages with unique DynamoDB table and S3 bucket names.
